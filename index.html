@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#3F5B81">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="IOX Payments">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%233F5B81'/%3E%3Ctext x='32' y='44' font-family='Segoe UI,Arial' font-size='34' font-weight='700' fill='white' text-anchor='middle'%3E$%3C/text%3E%3Ccircle cx='50' cy='50' r='5' fill='%23EA0029'/%3E%3C/svg%3E">
+<title>IOX Payment Builder</title>
+<style>:root{padding-top:env(safe-area-inset-top,0px)}</style>
+<style>
+/* Layout: phone-first. Item picker scrolls; the payment lives in a sheet pinned to the bottom (thumb zone) that slides up for details.
+   At 900px+ the sheet becomes a sticky card beside the picker. */
+:root{
+  --bg:#F3F5F8; --surface:#FFFFFF; --fg:#1C2533; --mute:#5F6B7C; --line:#DCE2EA;
+  --navy:#3F5B81; --navy-ink:#2B4466; --navy-soft:#E6ECF4;
+  --red:#EA0029; --red-soft:#FDE7EB; --on-accent:#FFFFFF;
+  --chip:#FFFFFF; --chip-on:#3F5B81; --chip-on-fg:#FFFFFF; --shadow:0 -8px 24px rgba(28,37,51,.14);
+  --font:'Segoe UI',system-ui,-apple-system,Tahoma,Geneva,Verdana,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0F1520; --surface:#18212F; --fg:#E7ECF3; --mute:#9AA7B8; --line:#2A3647;
+  --navy:#7E9CC6; --navy-ink:#A9C1E2; --navy-soft:#21324A;
+  --red:#FF4D6A; --red-soft:#3A1A22; --on-accent:#0F1520;
+  --chip:#1D2838; --chip-on:#7E9CC6; --chip-on-fg:#0F1520; --shadow:0 -8px 24px rgba(0,0,0,.5); color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#0F1520; --surface:#18212F; --fg:#E7ECF3; --mute:#9AA7B8; --line:#2A3647;
+  --navy:#7E9CC6; --navy-ink:#A9C1E2; --navy-soft:#21324A;
+  --red:#FF4D6A; --red-soft:#3A1A22; --on-accent:#0F1520;
+  --chip:#1D2838; --chip-on:#7E9CC6; --chip-on-fg:#0F1520; --shadow:0 -8px 24px rgba(0,0,0,.5); color-scheme:dark }
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{background:var(--bg)}
+body{color:var(--fg);font-family:var(--font);margin:0;font-size:15px;line-height:1.35}
+button{font:inherit;touch-action:manipulation}
+.app{max-width:1120px;margin:0 auto;padding-inline:14px;padding-block:14px 230px}
+header{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;border-bottom:2px solid var(--fg);padding-bottom:8px;margin-bottom:12px}
+.kicker{color:var(--red);font-weight:700;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase}
+h1{margin:2px 0 0;font-size:21px;line-height:1.1;font-weight:700}
+h1 .dot,h2 .dot{color:var(--red)}
+.clear{appearance:none;border:1px solid var(--line);background:var(--surface);color:var(--fg);font-size:13px;font-weight:600;padding:8px 14px;border-radius:999px;cursor:pointer;white-space:nowrap;min-height:38px}
+
+.picker{display:flex;flex-direction:column;gap:14px;min-width:0}
+.group{display:flex;flex-direction:column;gap:7px}
+.group h2{margin:0;font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:var(--mute);font-weight:700}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.item{appearance:none;text-align:left;cursor:pointer;background:var(--chip);color:var(--fg);border:1.5px solid var(--line);border-radius:10px;padding:10px 11px;font-weight:600;font-size:14.5px;line-height:1.2;min-height:50px;display:flex;align-items:center;user-select:none;transition:background .1s,border-color .1s,color .1s}
+.item[aria-pressed="true"]{background:var(--chip-on);border-color:var(--chip-on);color:var(--chip-on-fg)}
+.item.hero{border-color:var(--red)}
+.item.hero[aria-pressed="true"]{background:var(--red);border-color:var(--red);color:var(--on-accent)}
+.item:focus-visible,.seg button:focus-visible,.clear:focus-visible,.copy:focus-visible,.handle:focus-visible{outline:3px solid var(--red);outline-offset:2px}
+
+/* ---- payment sheet (phone) ---- */
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:10;background:var(--surface);border-top:4px solid var(--red);border-radius:16px 16px 0 0;box-shadow:var(--shadow);padding:6px 16px calc(12px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:10px;max-height:82vh}
+.handle{appearance:none;border:0;background:transparent;color:var(--mute);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;padding:2px 0 0;font-size:11.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;min-height:30px}
+.handle::before{content:"";width:40px;height:4px;border-radius:4px;background:var(--line)}
+.sum{display:flex;justify-content:space-between;align-items:flex-end;gap:10px}
+.pay{font-size:44px;line-height:1;font-weight:800;color:var(--red);font-variant-numeric:tabular-nums;letter-spacing:-.02em;white-space:nowrap}
+.pay small{font-size:17px;font-weight:700;color:var(--mute);letter-spacing:0}
+.pay.bump{animation:bump .25s ease-out}
+@keyframes bump{from{transform:scale(1.06)}to{transform:scale(1)}}
+.terms{margin-top:4px;font-size:13.5px;color:var(--mute)}
+.terms b{color:var(--fg)}
+.right{display:flex;flex-direction:column;align-items:flex-end;gap:6px;text-align:right}
+.total{font-size:12px;color:var(--mute)}
+.total b{display:block;font-size:19px;color:var(--navy-ink);font-variant-numeric:tabular-nums}
+.seg{display:inline-flex;background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:3px;gap:2px}
+.seg button{appearance:none;border:0;background:transparent;color:var(--mute);font-size:13px;font-weight:700;padding:7px 11px;border-radius:999px;cursor:pointer;min-height:34px}
+.seg button[aria-pressed="true"]{background:var(--navy);color:var(--chip-on-fg)}
+.seg[hidden]{display:none!important}
+.detail{overflow-y:auto;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;gap:10px;min-height:0}
+.lines{border-top:1px solid var(--line)}
+.ln{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);align-items:baseline}
+.ln .n{font-weight:600}
+.ln .n span{display:block;font-size:12px;color:var(--mute);font-weight:500}
+.ln .p{font-variant-numeric:tabular-nums;font-weight:700;white-space:nowrap}
+.ln .p s{color:var(--mute);font-weight:500;margin-right:6px}
+.notes{display:flex;flex-wrap:wrap;gap:6px}
+.note{font-size:12.5px;font-weight:600;padding:5px 9px;border-radius:7px;background:var(--navy-soft);color:var(--navy-ink)}
+.note.warn{background:var(--red-soft);color:var(--red)}
+.foot{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:11.5px;color:var(--mute)}
+.copy{appearance:none;border:0;background:var(--navy);color:var(--chip-on-fg);font-weight:700;font-size:13.5px;padding:10px 16px;border-radius:999px;cursor:pointer;white-space:nowrap}
+.empty{color:var(--mute);font-size:14px;padding:4px 0}
+.sheet:not(.open) .detail{display:none}
+.sheet.open .handle .lab::after{content:"Hide details"}
+.sheet:not(.open) .handle .lab::after{content:"Show details"}
+
+/* ---- desktop / show PC ---- */
+@media (min-width:900px){
+  .app{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:20px;padding-block:20px 40px;align-items:start}
+  header{grid-column:1/-1;margin-bottom:0}
+  h1{font-size:26px}
+  .grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}
+  .sheet{position:sticky;top:16px;left:auto;right:auto;bottom:auto;border-radius:14px;border:1.5px solid var(--line);border-top:5px solid var(--red);box-shadow:none;padding:18px;max-height:none}
+  .handle{display:none}
+  .sheet:not(.open) .detail{display:flex}
+  .sum{flex-direction:column;align-items:stretch;gap:12px}
+  .right{flex-direction:row;justify-content:space-between;align-items:center;text-align:left}
+  .pay{font-size:58px}
+}
+@media (max-width:360px){.pay{font-size:38px}.item{font-size:13.5px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+
+<div class="app">
+  <header>
+    <div>
+      <div class="kicker">IOX · Pricing valid Oct 9–10</div>
+      <h1>glidewell<span class="dot">.</span>io payment builder</h1>
+    </div>
+    <button class="clear" id="clearBtn" type="button">Clear</button>
+  </header>
+
+  <main class="picker">
+    <section class="group"><h2>fastmill<span class="dot">.</span>io</h2><div class="grid" id="grid-mill"></div></section>
+    <section class="group"><h2>fastscan<span class="dot">.</span>io</h2><div class="grid" id="grid-scan"></div></section>
+    <section class="group"><h2>Add-ons &amp; more</h2><div class="grid" id="grid-add"></div></section>
+    <section class="group"><h2>AACA &amp; DIG/DSS</h2><div class="grid" id="grid-prog"></div></section>
+  </main>
+
+  <aside class="sheet" id="sheet" aria-live="polite">
+    <button class="handle" id="handle" type="button" aria-expanded="false" aria-controls="detail"><span class="lab"></span></button>
+    <div class="sum">
+      <div>
+        <div class="pay" id="pay">$0<small>/mo</small></div>
+        <div class="terms" id="terms">Tap items to build a quote</div>
+      </div>
+      <div class="right">
+        <div class="total">Total financed<b id="total">$0</b></div>
+        <div class="seg" id="seg" role="group" aria-label="License length">
+          <button type="button" id="lic5" aria-pressed="true">5-yr</button>
+          <button type="button" id="lic1" aria-pressed="false">1-yr</button>
+        </div>
+      </div>
+    </div>
+    <div class="detail" id="detail">
+      <div class="lines" id="lines"></div>
+      <div class="notes" id="notes"></div>
+      <div class="foot"><span>0% · price ÷ months · before tax &amp; shipping</span><button class="copy" id="copyBtn" type="button">Copy quote</button></div>
+    </div>
+  </aside>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const usd = n => '$' + Math.round(n).toLocaleString('en-US');
+
+// ---- Price data: Quarterly Promo Sheet – October + IOX edits ----
+const MILLS = [
+  {id:'v20', name:'fastmill.io 2.0', hero:true, p5:86995, p1:69995, term:60, yr2:460, cash:5000, course:true, blocks:60},
+  {id:'v15', name:'fastmill.io 1.5', p5:76995, p1:59995, term:60, yr2:460, cash:5000, course:true, blocks:60},
+  {id:'demo', name:'1.5 Demo', p5:66995, p1:49995, term:48, yr2:460, cash:3000, course:true, blocks:60},
+  {id:'camo', name:'CamouFlage', p5:15000, p1:10000, term:12, yr2:null, cash:null, course:false, blocks:15, sub:'Remote training only'},
+  {id:'t20', name:'Trade-in → 2.0', p5:76995, p1:59995, term:48, yr2:460, cash:3000, course:true, blocks:60, sub:'$10,000 off'},
+  {id:'t15', name:'Trade-in → 1.5', p5:66995, p1:49995, term:48, yr2:460, cash:3000, course:true, blocks:60, sub:'$10,000 off'},
+  {id:'s20', name:'Second 2.0', p5:66995, p1:55995, term:48, yr2:230, cash:3000, course:false, blocks:60, sub:'Second mill pricing'},
+  {id:'s15', name:'Second 1.5', p5:56995, p1:45995, term:48, yr2:230, cash:3000, course:false, blocks:60, sub:'Second mill pricing'},
+];
+const PROGS = [
+  {id:'aaca20', name:'AACA 2.0', p5:73627, p1:59995, term:60, blocks:100, oneLabel:'1-yr License / 3-yr Warranty'},
+  {id:'aaca15', name:'AACA 1.5', p5:63627, p1:49995, term:60, blocks:100, oneLabel:'1-yr License / 3-yr Warranty'},
+  {id:'dig20', name:'DIG/DSS 2.0', p5:79995, p1:null, term:24, blocks:100, sub:'Also 1.99% 48 mo · 2.99% 60 mo'},
+  {id:'dig15', name:'DIG/DSS 1.5', p5:69995, p1:null, term:24, blocks:100, sub:'Also 1.99% 48 mo · 2.99% 60 mo'},
+];
+const ALL_MILLS = MILLS.concat(PROGS);
+const SCANS = [
+  {id:'c_l',  name:'i900C Laptop', fam:'i900', price:17999, fries:17999, term:36},
+  {id:'c_s',  name:'i900C Scanner Only', fam:'i900', price:15999, fries:null, term:36},
+  {id:'m_li', name:'i900M Laptop & iPad', fam:'i900', price:19999, fries:19999, term:36},
+  {id:'m_l',  name:'i900M Laptop or iPad', fam:'i900', price:17999, fries:17999, term:36},
+  {id:'m_s',  name:'i900M Scanner Only', fam:'i900', price:15999, fries:null, term:36},
+  {id:'e_l',  name:'iE Laptop', fam:'iE', price:13999, combo:8999, term:24},
+  {id:'e_s',  name:'iE Scanner Only', fam:'iE', price:10999, combo:5999, term:24},
+];
+const ADDS = [
+  {id:'uld', name:'Unlimited Lab Design', hero:true},
+  {id:'print', name:'fastprint.io', price:16990, term:36},
+  {id:'lum', name:'iTero Lumina Pro', fam:'lum', price:35000, fries:30000, term:60},
+  {id:'lumt', name:'Lumina Pro Trade-in', fam:'lum', price:27000, term:48},
+];
+const ULD_ADD = 6000, ULD_MO = 125, FRIES_TERM = 60;
+const state = { mill:null, i900:null, iE:null, lum:null, uld:false, print:false, lic:5 };
+
+function card(item, group){
+  const b = document.createElement('button');
+  b.type='button'; b.className='item' + (item.hero ? ' hero':''); b.id='it-'+item.id;
+  b.textContent = item.name; b.setAttribute('aria-pressed','false');
+  b.addEventListener('click', () => toggle(item, group));
+  return b;
+}
+MILLS.forEach(m => $('#grid-mill').append(card(m,'mill')));
+SCANS.forEach(s => $('#grid-scan').append(card(s,'scan')));
+ADDS.forEach(a => $('#grid-add').append(card(a,'add')));
+PROGS.forEach(p => $('#grid-prog').append(card(p,'mill')));
+
+function toggle(item, group){
+  if (group==='mill'){
+    const was = state.mill === item.id;
+    state.mill = was ? null : item.id;
+    if (!was && item.id==='v20') state.uld = true;   // 2.0 headline price includes ULD
+    if (!was && item.p1===null) state.lic = 5;
+  } else if (group==='scan'){ const k=item.fam; state[k] = state[k]===item.id ? null : item.id;
+  } else if (item.id==='uld'){ state.uld = !state.uld;
+  } else if (item.id==='print'){ state.print = !state.print;
+  } else if (item.fam==='lum'){ state.lum = state.lum===item.id ? null : item.id; }
+  render();
+}
+$('#lic5').addEventListener('click',()=>{state.lic=5;render()});
+$('#lic1').addEventListener('click',()=>{state.lic=1;render()});
+$('#clearBtn').addEventListener('click',()=>{Object.assign(state,{mill:null,i900:null,iE:null,lum:null,uld:false,print:false,lic:5});render()});
+$('#handle').addEventListener('click',()=>{const o=$('#sheet').classList.toggle('open');$('#handle').setAttribute('aria-expanded',o)});
+
+function compute(){
+  const lines=[], notes=[]; let total=0, terms=[], monthlyExtra=0;
+  const mill = ALL_MILLS.find(m=>m.id===state.mill);
+  if (mill){
+    const one = state.lic===1 && mill.p1!==null;
+    const p = one ? mill.p1 : mill.p5;
+    lines.push({n:mill.name, s:(one ? (mill.oneLabel||'1-yr License & Warranty') : '5-yr License & Warranty') + (mill.sub ? ' · '+mill.sub : ''), p});
+    total+=p; terms.push(mill.term);
+    if (one && mill.yr2) notes.push({t:`+${usd(mill.yr2)}/mo license & warranty from year 2`, warn:true});
+    if (mill.cash) notes.push({t:`Cash discount ${usd(mill.cash)}`});
+    if (mill.course) notes.push({t:'Advanced Course + travel'});
+    notes.push({t:`${mill.blocks} blocks`});
+  }
+  const hasMill = !!mill;
+  const i900 = SCANS.find(s=>s.id===state.i900), iE = SCANS.find(s=>s.id===state.iE);
+  if (i900){
+    const fries = hasMill && i900.fries;
+    const p = fries ? i900.fries : i900.price;
+    lines.push({n:i900.name, s: fries ? 'With mill · 5 years total warranty' : '3-year warranty', p});
+    total+=p; terms.push(fries ? FRIES_TERM : i900.term);
+    notes.push({t:'i900: 2 aligner cases 50% off'},{t:'FREE Glidewell course + hotel'});
+  }
+  if (iE){
+    const combo = !!i900, p = combo ? iE.combo : iE.price;
+    lines.push({n:iE.name, s: combo ? 'Q4 Combo with i900' : '1-year warranty', p, was: combo ? iE.price : null});
+    total+=p; terms.push(iE.term);
+    notes.push({t:'iE: pre-order, ships late Nov · no cart or accessories', warn:true});
+  }
+  const lum = ADDS.find(a=>a.id===state.lum);
+  if (lum){
+    const fries = hasMill && lum.fries, p = fries ? lum.fries : lum.price;
+    lines.push({n:lum.name, s: fries ? 'With mill price' : '3 years fees', p, was: fries ? lum.price : null});
+    total+=p; terms.push(fries ? FRIES_TERM : lum.term);
+  }
+  if (state.print){ lines.push({n:'fastprint.io', s:'iLux Wash, iLuxCure, LuxOven Pro', p:16990}); total+=16990; terms.push(36); }
+  if (state.uld){
+    if (mill && state.lic===5){ lines.push({n:'Unlimited Lab Design', s:'Added to 5-yr license', p:ULD_ADD}); total+=ULD_ADD; }
+    else { lines.push({n:'Unlimited Lab Design', s:'Billed monthly', p:null, mo:ULD_MO}); monthlyExtra+=ULD_MO; }
+  }
+  const term = terms.length ? Math.max(...terms) : 0;
+  return {lines, notes, total, term, monthly:(term ? total/term : 0) + monthlyExtra, monthlyExtra, mill};
+}
+
+let lastQuote='', lastPay='';
+function render(){
+  const on = new Set([state.mill, state.i900, state.iE, state.lum, state.uld && 'uld', state.print && 'print']);
+  document.querySelectorAll('.item').forEach(b=>b.setAttribute('aria-pressed', on.has(b.id.slice(3)) ? 'true':'false'));
+  const q = compute(), mill = q.mill;
+  $('#seg').hidden = !mill || mill.p1===null;
+  $('#lic5').setAttribute('aria-pressed', state.lic===5); $('#lic1').setAttribute('aria-pressed', state.lic===1);
+
+  if (!q.lines.length){
+    $('#pay').innerHTML='$0<small>/mo</small>'; $('#terms').textContent='Tap items to build a quote'; $('#total').textContent='$0';
+    $('#lines').innerHTML='<div class="empty">Combos finance the full total on the best 0% term in the bundle.</div>';
+    $('#notes').innerHTML=''; lastQuote=''; lastPay=''; return;
+  }
+  const payTxt = usd(q.monthly);
+  $('#pay').innerHTML = payTxt + '<small>/mo</small>';
+  if (payTxt!==lastPay){ const el=$('#pay'); el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); lastPay=payTxt; }
+  $('#terms').innerHTML = (q.term ? `<b>0% · ${q.term} months</b>` : '<b>Monthly service</b>') + (q.monthlyExtra && q.term ? ` · incl. ${usd(q.monthlyExtra)} ULD` : '');
+  $('#total').textContent = usd(q.total);
+  $('#lines').innerHTML = q.lines.map(l=>`<div class="ln"><div class="n">${l.n}<span>${l.s}</span></div><div class="p">${l.was?`<s>${usd(l.was)}</s>`:''}${l.p!==null?usd(l.p):usd(l.mo)+'/mo'}</div></div>`).join('');
+  $('#notes').innerHTML = q.notes.map(n=>`<span class="note${n.warn?' warn':''}">${n.t}</span>`).join('');
+  lastQuote = q.lines.map(l=>`${l.n}: ${l.p!==null?usd(l.p):usd(l.mo)+'/mo'}`).join('\n') +
+    `\nTotal financed: ${usd(q.total)}\nMonthly: ${payTxt}/mo` + (q.term?` (0% for ${q.term} months)`:'');
+}
+
+$('#copyBtn').addEventListener('click', async ()=>{
+  if (!lastQuote) return;
+  const btn=$('#copyBtn');
+  try{ await navigator.clipboard.writeText(lastQuote); btn.textContent='Copied'; }
+  catch(e){ const r=document.createRange(); r.selectNodeContents($('#detail')); const s=getSelection(); s.removeAllRanges(); s.addRange(r); btn.textContent='Selected'; }
+  setTimeout(()=>btn.textContent='Copy quote',1600);
+});
+
+// open in a working state: the headline combo
+state.mill='v20'; state.uld=true; state.i900='c_l';
+render();
+</script>
+
+</body>
+</html>
