@@ -169,6 +169,10 @@ const PROGS = [
   {id:'dig15', name:'DIG/DSS 1.5', p5:69995, p1:null, term:24, blocks:100, sub:'Also 1.99% 48 mo · 2.99% 60 mo'},
 ];
 const ALL_MILLS = MILLS.concat(PROGS);
+// Customer-facing names for the quote card + copied quote: no model-generation labels
+const QUOTE_NAME = {v20:'fastmill.io', v15:'fastmill.io', demo:'fastmill.io Demo', camo:'CamouFlage',
+  t20:'fastmill.io · Trade-in', t15:'fastmill.io · Trade-in', s20:'fastmill.io · Second mill', s15:'fastmill.io · Second mill',
+  aaca20:'fastmill.io · AACA program', aaca15:'fastmill.io · AACA program', dig20:'fastmill.io · DIG/DSS program', dig15:'fastmill.io · DIG/DSS program'};
 const SCANS = [
   {id:'c_l',  name:'i900C Laptop', fam:'i900', price:17999, fries:17999, term:36},
   {id:'c_s',  name:'i900C Scanner Only', fam:'i900', price:15999, fries:null, term:36},
@@ -222,7 +226,7 @@ function compute(){
   if (mill){
     const one = state.lic===1 && mill.p1!==null;
     const p = one ? mill.p1 : mill.p5;
-    lines.push({n:mill.name, s:(one ? (mill.oneLabel||'1-yr License & Warranty') : '5-yr License & Warranty') + (mill.sub ? ' · '+mill.sub : ''), p});
+    lines.push({n:QUOTE_NAME[mill.id]||mill.name, s:(one ? (mill.oneLabel||'1-yr License & Warranty') : '5-yr License & Warranty') + (mill.sub ? ' · '+mill.sub : ''), p});
     total+=p; terms.push(mill.term);
     if (one && mill.yr2) notes.push({t:`+${usd(mill.yr2)}/mo license & warranty from year 2`, warn:true});
     if (mill.cash) notes.push({t:`Cash discount ${usd(mill.cash)}`});
