@@ -84,6 +84,21 @@ h1 .dot,h2 .dot{color:var(--red)}
 .foot{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:11.5px;color:var(--mute)}
 .copy{appearance:none;border:0;background:var(--navy);color:var(--chip-on-fg);font-weight:700;font-size:13.5px;padding:10px 16px;border-radius:999px;cursor:pointer;white-space:nowrap}
 .empty{color:var(--mute);font-size:14px;padding:4px 0}
+.cheat{border:1.5px solid var(--line);border-radius:10px;background:var(--surface)}
+.cheat summary{cursor:pointer;list-style:none;padding:11px 12px;font-weight:700;font-size:14px;display:flex;justify-content:space-between;align-items:center;min-height:46px}
+.cheat summary::-webkit-details-marker{display:none}
+.cheat summary::after{content:"Show";font-size:12px;color:var(--navy-ink);font-weight:700}
+.cheat[open] summary::after{content:"Hide"}
+.cheat summary:focus-visible{outline:3px solid var(--red);outline-offset:2px;border-radius:10px}
+.tw{overflow-x:auto;padding:0 8px 10px}
+.ct{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums}
+.ct th{text-align:left;font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--mute);font-weight:700;padding:6px 4px;border-bottom:1.5px solid var(--fg);white-space:nowrap}
+.ct td{padding:7px 4px;border-bottom:1px solid var(--line);white-space:nowrap;vertical-align:top}
+.ct tr:last-child td{border-bottom:0}
+.ct td b{font-weight:700}
+.ct td.hi b{color:var(--red)}
+.ct td span{display:block;font-size:11px;color:var(--mute)}
+.cnote{font-size:11.5px;color:var(--mute);padding:0 12px 11px}
 .sheet:not(.open) .detail{display:none}
 .sheet.open .handle .lab::after{content:"Hide details"}
 .sheet:not(.open) .handle .lab::after{content:"Show details"}
@@ -119,6 +134,10 @@ h1 .dot,h2 .dot{color:var(--red)}
 
   <main class="picker">
     <section class="group"><h2>fastmill<span class="dot">.</span>io</h2><div class="grid" id="grid-mill"></div></section>
+    <section class="group"><h2>fastmill<span class="dot">.</span>io upgrades · by install year</h2><div class="grid" id="grid-upg"></div>
+      <details class="cheat" id="upgCheat"><summary>Upgrade cheat sheet</summary><div class="tw"><table class="ct" id="upgTable"></table></div>
+      <div class="cnote">Trade-in credit is based on the year the current mill was installed. ULD adds $6,000 to the 5-yr price. Monthly shown at 0% for 48 months.</div></details>
+    </section>
     <section class="group"><h2>fastscan<span class="dot">.</span>io</h2><div class="grid" id="grid-scan"></div></section>
     <section class="group"><h2>Add-ons &amp; more</h2><div class="grid" id="grid-add"></div></section>
     <section class="group"><h2>AACA &amp; DIG/DSS</h2><div class="grid" id="grid-prog"></div></section>
@@ -168,11 +187,22 @@ const PROGS = [
   {id:'dig20', name:'DIG/DSS 2.0', p5:79995, p1:null, term:24, blocks:100, sub:'Also 1.99% 48 mo · 2.99% 60 mo'},
   {id:'dig15', name:'DIG/DSS 1.5', p5:69995, p1:null, term:24, blocks:100, sub:'Also 1.99% 48 mo · 2.99% 60 mo'},
 ];
-const ALL_MILLS = MILLS.concat(PROGS);
+// Upgrade program for current fastmill.io owners (Jocelyn's cheat sheet): credit by install year off new 5-yr / 1-yr pricing
+const UPG_BASE5 = 86995, UPG_BASE1 = 69995, UPG_TERM = 48;   // term: trade-in financing 0% 12–48 mo
+const UPGRADES = [
+  {yr:'2026', owned:'1 yr', pct:5,  credit:2750},
+  {yr:'2025', owned:'2 yrs', pct:10, credit:5500},
+  {yr:'2024', owned:'3 yrs', pct:20, credit:11000},
+  {yr:'2023', owned:'4 yrs', pct:30, credit:16500},
+  {yr:'2022 or older', owned:'5+ yrs', pct:40, credit:22000},
+].map(u => ({id:'u'+u.yr.slice(0,4), name:`Upgrade · ${u.yr==='2022 or older'?'2022 or older':u.yr+' install'}`, upgrade:true,
+  p5:UPG_BASE5-u.credit, p1:UPG_BASE1-u.credit, term:UPG_TERM, yr2:460, blocks:null,
+  sub:`${usd(u.credit)} trade-in credit · installed ${u.yr}`, ...u}));
+const ALL_MILLS = MILLS.concat(PROGS, UPGRADES);
 // Customer-facing names for the quote card + copied quote: no model-generation labels
 const QUOTE_NAME = {v20:'fastmill.io', v15:'fastmill.io', demo:'fastmill.io Demo', camo:'CamouFlage',
   t20:'fastmill.io · Trade-in', t15:'fastmill.io · Trade-in', s20:'fastmill.io · Second mill', s15:'fastmill.io · Second mill',
-  aaca20:'fastmill.io · AACA program', aaca15:'fastmill.io · AACA program', dig20:'fastmill.io · DIG/DSS program', dig15:'fastmill.io · DIG/DSS program'};
+  upg:'fastmill.io · Upgrade', aaca20:'fastmill.io · AACA program', aaca15:'fastmill.io · AACA program', dig20:'fastmill.io · DIG/DSS program', dig15:'fastmill.io · DIG/DSS program'};
 const SCANS = [
   {id:'c_l',  name:'i900C Laptop', fam:'i900', price:17999, fries:17999, term:36},
   {id:'c_s',  name:'i900C Scanner Only', fam:'i900', price:15999, fries:null, term:36},
@@ -202,12 +232,17 @@ MILLS.forEach(m => $('#grid-mill').append(card(m,'mill')));
 SCANS.forEach(s => $('#grid-scan').append(card(s,'scan')));
 ADDS.forEach(a => $('#grid-add').append(card(a,'add')));
 PROGS.forEach(p => $('#grid-prog').append(card(p,'mill')));
+UPGRADES.forEach(u => $('#grid-upg').append(card(u,'mill')));
+$('#upgTable').innerHTML = '<thead><tr><th>Install</th><th>Credit</th><th>5-yr + ULD</th><th>5-yr</th><th>1-yr</th></tr></thead><tbody>' +
+  UPGRADES.map(u => `<tr><td><b>${u.yr.slice(0,4)}</b><span>${u.yr.length>4?'or older · ':''}${u.owned}</span></td><td><b>${usd(u.credit)}</b><span>${u.pct}%</span></td>` +
+    `<td class="hi"><b>${usd(u.p5+ULD_ADD)}</b><span>${usd((u.p5+ULD_ADD)/UPG_TERM)}/mo</span></td>` +
+    `<td><b>${usd(u.p5)}</b><span>${usd(u.p5/UPG_TERM)}/mo</span></td><td><b>${usd(u.p1)}</b><span>${usd(u.p1/UPG_TERM)}/mo</span></td></tr>`).join('') + '</tbody>';
 
 function toggle(item, group){
   if (group==='mill'){
     const was = state.mill === item.id;
     state.mill = was ? null : item.id;
-    if (!was && item.id==='v20') state.uld = true;   // 2.0 headline price includes ULD
+    if (!was && (item.id==='v20' || item.upgrade)) state.uld = true;   // new mill pricing leads with ULD included
     if (!was && item.p1===null) state.lic = 5;
   } else if (group==='scan'){ const k=item.fam; state[k] = state[k]===item.id ? null : item.id;
   } else if (item.id==='uld'){ state.uld = !state.uld;
@@ -226,12 +261,12 @@ function compute(){
   if (mill){
     const one = state.lic===1 && mill.p1!==null;
     const p = one ? mill.p1 : mill.p5;
-    lines.push({n:QUOTE_NAME[mill.id]||mill.name, s:(one ? (mill.oneLabel||'1-yr License & Warranty') : '5-yr License & Warranty') + (mill.sub ? ' · '+mill.sub : ''), p});
+    lines.push({n:QUOTE_NAME[mill.upgrade?'upg':mill.id]||mill.name, s:(one ? (mill.oneLabel||'1-yr License & Warranty') : '5-yr License & Warranty') + (mill.sub ? ' · '+mill.sub : ''), p});
     total+=p; terms.push(mill.term);
     if (one && mill.yr2) notes.push({t:`+${usd(mill.yr2)}/mo license & warranty from year 2`, warn:true});
     if (mill.cash) notes.push({t:`Cash discount ${usd(mill.cash)}`});
     if (mill.course) notes.push({t:'Advanced Course + travel'});
-    notes.push({t:`${mill.blocks} blocks`});
+    if (mill.blocks) notes.push({t:`${mill.blocks} blocks`});
   }
   const hasMill = !!mill;
   const i900 = SCANS.find(s=>s.id===state.i900), iE = SCANS.find(s=>s.id===state.iE);
